@@ -665,9 +665,9 @@ async function saveToCloud() {
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
-      redirect: 'follow', // Обязательно для Google Apps Script
+      redirect: 'follow',
       headers: {
-        'Content-Type': 'text/plain;charset=utf-8' // Обходит CORS-блокировку браузера
+        'Content-Type': 'text/plain;charset=utf-8'
       },
       body: JSON.stringify(rows)
     });
@@ -683,7 +683,7 @@ async function loadFromCloud() {
   try {
     const response = await fetch(API_URL, {
       method: 'GET',
-      redirect: 'follow' // Добавлено для надежности
+      redirect: 'follow'
     });
     if (!response.ok) throw new Error('Ошибка сети');
     
@@ -751,11 +751,11 @@ document.addEventListener('blur', (e) => {
 
 
 // ==========================================
-// ЗАПУСК (Загружаем данные из облака при старте)
+// ЗАПУСК
 // ==========================================
 loadFromCloud();
 
-// --- РЕЖИМ ТОЛЬКО ДЛЯ ЧТЕНИЯ ---
+// --- РЕЖИМ ТОЛЬКО ДЛЯ ЧТЕНИЯ (закомментирован для index.html) ---
 
 document.querySelectorAll('.btn-top.add, .btn-top.clear, .btn-top.delete-selected, .col-check, .col-act').forEach(el => {
     if(el) el.style.display = 'none';
@@ -769,6 +769,7 @@ document.querySelectorAll('tr[data-id]').forEach(el => {
 document.querySelectorAll('select.status').forEach(el => {
     el.disabled = true;
 });
+
 
 </script>
 

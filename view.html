@@ -343,8 +343,11 @@
 </div>
 
 <script>
-const KEY = 'my_games_table_multiselect_v2';
-const OLD_KEY = 'my_games_table_multiselect_v1';
+// ==========================================
+// НАСТРОЙКА ОБЛАЧНОГО API (Google Sheets)
+// ==========================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbzrJESZkLj2J4iWDEAaeSQzLEjpcRvs9Gg5wBdJRJFtTq8DwnBDDh-fZ6rZgHNbJOsI/exec';
+
 const tbody = document.getElementById('tbody');
 const selectAllCheckbox = document.getElementById('selectAll');
 const btnDeleteSelected = document.getElementById('btnDeleteSelected');
@@ -422,7 +425,9 @@ function addRow(data) {
   sel.addEventListener('change', () => {
     sel.className = 'status ' + sel.value;
     tr.classList.toggle('row-progress', sel.value === 'В процессе');
-    save(); updateStats(); sortRows();
+    debouncedSave(); 
+    updateStats(); 
+    sortRows();
   });
   tdStatus.appendChild(sel);
   tr.appendChild(tdStatus);
@@ -458,7 +463,9 @@ function addRow(data) {
 
 function addMainRow() {
   const tr = addRow({});
-  save(); updateStats(); sortRows();
+  debouncedSave(); 
+  updateStats(); 
+  sortRows();
   const nameDiv = tr.querySelector('.col-name [contenteditable]');
   if (nameDiv) nameDiv.focus();
 }
@@ -481,7 +488,8 @@ function addSubgroup(parentId) {
   lastChild.insertAdjacentElement('afterend', tr);
 
   renumber();
-  save(); updateStats();
+  debouncedSave(); 
+  updateStats();
 
   const nameDiv = tr.querySelector('.col-name [contenteditable]');
   if (nameDiv) nameDiv.focus();
@@ -493,7 +501,10 @@ function deleteRow(tr) {
     tbody.querySelectorAll(`tr[data-parent="${id}"]`).forEach(s => s.remove());
   }
   tr.remove();
-  renumber(); save(); updateStats(); updateSelectionUI();
+  renumber(); 
+  debouncedSave(); 
+  updateStats(); 
+  updateSelectionUI();
 }
 
 function updateSelectionUI() {
@@ -544,7 +555,10 @@ function deleteSelected() {
     }
   });
 
-  renumber(); save(); updateStats(); updateSelectionUI();
+  renumber(); 
+  debouncedSave(); 
+  updateStats(); 
+  updateSelectionUI();
 }
 
 function renumber() {
@@ -625,10 +639,24 @@ tbody.addEventListener('dragend', () => {
     subs.forEach(sub => { anchor.insertAdjacentElement('afterend', sub); anchor = sub; });
   });
   draggedRow = null;
-  renumber(); save();
+  renumber(); 
+  debouncedSave();
 });
 
-function save() {
+/* ==========================================
+   ЛОГИКА СОХРАНЕНИЯ И ЗАГРУЗКИ ИЗ ОБЛАКА
+   ========================================== */
+
+// Задержка сохранения (чтобы не спамить Google API при каждом нажатии)
+let saveTimeout;
+function debouncedSave() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    saveToCloud();
+  }, 1500); // Сохраняем через 1.5 секунды после последнего изменения
+}
+
+async function saveToCloud() {
   const rows = [...tbody.querySelectorAll('tr[data-id]')].map(tr => ({
     id: tr.dataset.id,
     parentId: tr.dataset.parent || null,
@@ -638,42 +666,55 @@ function save() {
     notes: tr.querySelector('.col-notes [contenteditable]').textContent.trim(),
     customer: tr.querySelector('.col-customer [contenteditable]').textContent.trim()
   }));
-  localStorage.setItem(KEY, JSON.stringify(rows));
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify(rows)
+      // Заголовки не ставим, чтобы избежать CORS preflight. Apps Script прочтет e.postData.contents.
+    });
+    
+    if (!response.ok) throw new Error('Ошибка сети');
+    console.log('✅ Данные успешно сохранены в Google Таблицу');
+  } catch (error) {
+    console.error('❌ Ошибка сохранения:', error);
+    // Опционально можно показать уведомление пользователю
+  }
 }
 
-function load() {
-  let raw = localStorage.getItem(KEY);
-  if (!raw) {
-    const oldRaw = localStorage.getItem(OLD_KEY);
-    if (oldRaw) {
-      try {
-        const oldData = JSON.parse(oldRaw);
-        oldData.forEach(d => { d.id = genId(); d.parentId = null; });
-        localStorage.setItem(KEY, JSON.stringify(oldData));
-        raw = localStorage.getItem(KEY);
-      } catch (e) {}
+async function loadFromCloud() {
+  try {
+    const response = await fetch(API_URL);
+    if (!response.ok) throw new Error('Ошибка сети');
+    
+    const data = await response.json();
+    tbody.innerHTML = '';
+    
+    if (Array.isArray(data) && data.length > 0) {
+      data.forEach(d => addRow(d));
+    } else {
+      // Если в таблице пусто, создаем демо-запись
+      const g1 = genId();
+      addRow({ id: g1, parentId: null, name: 'The Witcher 3', score: '10', status: 'Пройдена', notes: 'Геральт навсегда', customer: 'CD Projekt' });
+      addRow({ id: genId(), parentId: g1, name: 'Blood and Wine', score: '10', status: 'Пройдена', notes: 'Лучшее DLC', customer: 'CD Projekt' });
+      debouncedSave(); // Сразу сохраняем демо-данные в облако
     }
+    
+    sortRows(); 
+    updateStats(); 
+    updateSelectionUI();
+  } catch (error) {
+    console.error('❌ Ошибка загрузки:', error);
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#ff8080;">Не удалось загрузить данные из облака. Проверьте интернет.</td></tr>';
   }
-
-  if (raw) {
-    try { JSON.parse(raw).forEach(d => addRow(d)); } catch (e) {}
-  }
-
-  if (tbody.children.length === 0) {
-    const g1 = genId();
-    addRow({ id: g1, parentId: null, name: 'The Witcher 3', score: '10', status: 'Пройдена', notes: 'Геральт навсегда', customer: 'CD Projekt' });
-    addRow({ id: genId(), parentId: g1, name: 'Blood and Wine', score: '10', status: 'Пройдена', notes: 'Лучшее DLC', customer: 'CD Projekt' });
-    addRow({ id: genId(), parentId: g1, name: 'Hearts of Stone', score: '9', status: 'Пройдена', notes: 'Отличная история', customer: 'CD Projekt' });
-    addRow({ id: genId(), parentId: null, name: 'Hades', score: '9', status: 'Пройдена', notes: 'Рогалик-шедевр', customer: 'Supergiant' });
-    addRow({ id: genId(), parentId: null, name: 'Elden Ring', score: '', status: 'В процессе', notes: 'Только начал', customer: 'FromSoftware' });
-  }
-  sortRows(); updateStats(); updateSelectionUI();
 }
 
 function clearAll() {
   if (confirm('Точно удалить ВСЕ записи?')) {
     tbody.innerHTML = '';
-    save(); updateStats(); updateSelectionUI();
+    debouncedSave(); 
+    updateStats(); 
+    updateSelectionUI();
   }
 }
 
@@ -691,39 +732,49 @@ function updateStats() {
   document.getElementById('statAvg').textContent = avg;
 }
 
+// Отслеживаем ввод текста в ячейки
 document.addEventListener('input', (e) => {
-  if (e.target.closest('[contenteditable]')) { save(); updateStats(); }
+  if (e.target.closest('[contenteditable]')) { 
+    debouncedSave(); 
+    updateStats(); 
+  }
 });
 
+// Сортируем таблицу, когда пользователь закончил вводить оценку
 document.addEventListener('blur', (e) => {
   if (!e.target.closest('[contenteditable]')) return;
   const currentRow = e.target.closest('tr');
   setTimeout(() => {
-    save(); updateStats();
+    debouncedSave(); 
+    updateStats();
     const activeRow = document.activeElement?.closest?.('tr');
     if (activeRow !== currentRow) sortRows();
   }, 10);
 }, true);
 
 
-load();
+// ==========================================
+// ЗАПУСК (Загружаем данные из облака при старте)
+// ==========================================
+loadFromCloud();
+
 // --- РЕЖИМ ТОЛЬКО ДЛЯ ЧТЕНИЯ ---
-// Убираем кнопки добавления/удаления, чекбоксы и кнопки в строках
+// ВНИМАНИЕ! Если это файл для редактирования (index.html), УДАЛИТЕ этот блок перед шифрованием!
+// Оставьте его только для файла view.html (для друзей).
+
 document.querySelectorAll('.btn-top.add, .btn-top.clear, .btn-top.delete-selected, .col-check, .col-act').forEach(el => {
-    el.style.display = 'none';
+    if(el) el.style.display = 'none';
 });
-// Запрещаем редактировать текст в ячейках
 document.querySelectorAll('[contenteditable]').forEach(el => {
     el.removeAttribute('contenteditable');
 });
-// Отключаем перетаскивание строк
 document.querySelectorAll('tr[data-id]').forEach(el => {
     el.draggable = false;
 });
-// Блокируем выпадающие списки статусов
 document.querySelectorAll('select.status').forEach(el => {
     el.disabled = true;
 });
+
 
 </script>
 

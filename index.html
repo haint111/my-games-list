@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Мои пройденные игры</title>
+<style>
+  :root{
+    --bg:#0e0e10;
+    --panel:rgba(20, 21, 25, 0.75);
+    --panel-2:rgba(35, 37, 44, 0.85);
+    --text:#f2f3f5;
+    --muted:#a0a2aa;
+    --border:rgba(255, 255, 255, 0.12);
+    --line:rgba(255, 255, 255, 0.18);
+  }
+  *{box-sizing:border-box}
+  html { background-color: var(--bg); }
+
+  body{
+    margin:0; padding:40px 20px;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color:var(--text);
+    min-height:100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ФОН: Твоя картинка bg.jpg */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -10px; left: -10px; right: -10px; bottom: -10px;
+    background-image: url('bg.jpg');
+    background-color: #0e0e10;
+    background-size: cover;
+    background-position: center;
+    z-index: -2;
+    filter: blur(6px);
+    -webkit-filter: blur(6px);
+  }
+  
+  /* Затемнение */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(14, 14, 16, 0.7);
+    z-index: -1;
+  }
+
+  .wrap{max-width:1180px;margin:0 auto; position: relative; z-index: 1;}
+
+  /* ── Шапка (Заголовок по центру, кнопки справа) ── */
+  .header-bar{
+    position: relative;
+    display: flex; 
+    align-items: center; 
+    justify-content: center; /* Центрируем заголовок */
+    margin-bottom: 26px;
+    min-height: 34px;
+  }
+
+  .title {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 34px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  /* Кнопки прибиты к правому краю, чтобы не сдвигать заголовок */
+  .header-actions {
+    position: absolute;
+    right: 0;
+    display: flex; 
+    gap: 10px; 
+    align-items: center; 
+  }
+
+  .btn-top{
+    display:inline-flex; align-items:center; justify-content:center;
+    width: 34px; height: 34px; border-radius: 50%;
+    border:none; cursor:pointer; transition:.2s; position: relative;
+  }
+  .btn-top svg{width:16px; height:16px; flex-shrink:0}
+
+  .btn-top.add{
+    background: #e2e4e9;
+    color: #111;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .btn-top.add:hover{transform:translateY(-1px); background: #ffffff; box-shadow:0 4px 12px rgba(255,255,255,.2)}
+
+  .btn-top.clear{
+    background: rgba(255,255,255,.05);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+  }
+  .btn-top.clear:hover{color:#fff; border-color:rgba(255,255,255,.4); background:rgba(255,255,255,.1); transform:translateY(-1px)}
+
+  .btn-top.delete-selected {
+    background: rgba(255, 80, 80, 0.15);
+    color: #ff8080;
+    border: 1px solid rgba(255, 80, 80, 0.4);
+    display: none;
+    width: auto; border-radius: 20px; padding: 0 12px; gap: 6px;
+    font-size: 12px; font-weight: 600; height: 34px;
+  }
+  .btn-top.delete-selected svg { width: 14px; height: 14px; }
+  .btn-top.delete-selected:hover {
+    background: #ff4757; color: #fff; border-color: #ff4757;
+    transform:translateY(-1px);
+  }
+  .btn-top.delete-selected.visible {
+    display: inline-flex; animation: fadeIn .2s ease-out;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+  /* ── Статистика ── */
+  .stats{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-bottom:22px; }
+  .stat{
+    background: var(--panel); 
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.25); 
+    padding:10px 18px; border-radius:12px; min-width:120px;
+    text-align:center; 
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.08), 
+                inset 0 0 5px rgba(255, 255, 255, 0.05), 
+                0 8px 32px rgba(0,0,0,0.3); 
+    flex: 1;
+  }
+  .stat b{display:block;font-size:20px;color:#ffffff; margin-bottom: 2px; text-shadow: 0 0 8px rgba(255,255,255,0.4);}
+  .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+
+  /* ── Таблица ── */
+  .table-box{
+    background: var(--panel); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border); border-radius:18px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    box-shadow:0 24px 60px rgba(0,0,0,0.5);
+  }
+  table{width:100%; border-collapse:collapse; font-size:14px; min-width: 760px;}
+
+  thead th{
+    background:rgba(255, 255, 255, 0.05); color:#dfe1e6;
+    text-align:left; padding:14px 12px; font-size:12px;
+    text-transform:uppercase; letter-spacing:.8px; font-weight:600;
+    border-bottom:1px solid var(--line);
+    vertical-align: middle;
+  }
+  tbody td{
+    padding:10px 12px; border-bottom:1px solid var(--border);
+    vertical-align:middle; transition:background .2s;
+  }
+  tbody tr:hover{background:rgba(255,255,255,.08)}
+  tbody tr.stripe:not(.subgroup-row){background:rgba(255,255,255,.02)}
+  tbody tr:last-child td{border-bottom:none}
+
+  .col-check { width: 36px; text-align: center; padding-right: 0 !important; }
+  input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    width: 16px; height: 16px; border-radius: 4px;
+    border: 1px solid var(--muted); background: transparent;
+    cursor: pointer; position: relative; vertical-align: middle;
+    transition: .15s; outline: none;
+  }
+  input[type="checkbox"]:checked {
+    background: #ffffff; border-color: #ffffff;
+  }
+  input[type="checkbox"]:checked::after {
+    content: '✔'; position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); color: #111; font-size: 11px; font-weight: bold;
+  }
+
+  tbody tr.selected-row {
+    background: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 0 0 12px rgba(255, 255, 255, 0.12);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  tbody tr[data-id]:not(.subgroup-row){cursor:grab}
+  tbody tr[data-id]:not(.subgroup-row):active{cursor:grabbing}
+  tbody tr.dragging{
+    opacity:0.5; background: rgba(255,255,255,.15) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+
+  tbody tr.row-progress{
+    background:linear-gradient(90deg, rgba(255,255,255,.12), rgba(255,255,255,.03));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.7), 0 0 24px rgba(255,255,255,.15);
+  }
+  tbody tr.row-progress td{
+    border-top:1px solid rgba(255,255,255,.2);
+    border-bottom:1px solid rgba(255,255,255,.2);
+  }
+  tbody tr.row-progress td:nth-child(2){
+    box-shadow: inset 3px 0 0 #ffffff; color:#ffffff;
+  }
+  tbody tr.row-progress td:last-child{
+    border-right:1px solid rgba(255,255,255,.2);
+  }
+
+  tbody tr.subgroup-row{
+    background: rgba(255,255,255,0.015); cursor: default;
+  }
+  tbody tr.subgroup-row:hover{background: rgba(255,255,255,.05)}
+  tbody tr.subgroup-row td{ padding-top: 6px; padding-bottom: 6px; font-size: 13px; }
+  tbody tr.subgroup-row td:nth-child(2){
+    color: var(--muted); font-size: 16px; padding-left: 18px; text-align: left;
+    box-shadow: inset 2px 0 0 rgba(255,255,255,0.08);
+  }
+  tbody tr.subgroup-row .col-name [contenteditable]{
+    padding-left: 2px; font-weight: 400; color: #d8dae0;
+  }
+
+  [contenteditable]{
+    outline:none; width:100%; padding:6px 8px; border-radius:6px;
+    min-height:20px; transition:background .15s; cursor:text;
+    font-family: inherit; font-size: inherit; color: inherit;
+  }
+  [contenteditable]:hover{background:rgba(255,255,255,.06)}
+  [contenteditable]:focus{background:rgba(255,255,255,.12); box-shadow:0 0 0 1px #9aa0aa}
+
+  .col-idx{width:40px;color:var(--muted);font-weight:600;text-align:center}
+  .col-name{width:25%}
+  .col-score{width:8%;text-align:center}
+  .col-status{width:14%}
+  .col-notes{width:22%}
+  .col-customer{width:15%}
+  .col-act{width:76px;text-align:center}
+
+  select.status{
+    background:var(--panel-2); color:var(--text); border:1px solid var(--border);
+    border-radius:6px; padding:6px; font-size:12.5px; width:100%;
+    outline:none; cursor:pointer; font-family:inherit;
+  }
+  select.status.Пройдена{color:#ffffff}
+  select.status.Брошена{color:#8b8d94}
+  select.status.В\ процессе{color:#e6e8ec; font-weight:600}
+
+  .row-act{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:24px; height:24px; border-radius:6px;
+    border:1px solid var(--border); background:transparent;
+    color:var(--muted); cursor:pointer; font-size:12px; line-height:1;
+    transition:.15s; margin:0 2px; padding:0; font-family:inherit;
+  }
+  .row-act:hover{background:#e9eaee; color:#111; border-color:#e9eaee}
+  .row-act.add-sub{font-weight:600; font-size:14px}
+  .row-act.add-sub:hover{background:#ffffff; color:#111; border-color:#ffffff}
+
+  /* ── Мобильная версия ── */
+  @media (max-width: 820px){
+    body{padding:20px 10px}
+    
+    /* На телефоне кнопки встают под заголовок */
+    .header-bar {
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .header-actions {
+      position: static; /* Убираем абсолютное позиционирование */
+      justify-content: center;
+    }
+    .title {
+      font-size: 28px;
+    }
+
+    .stats{gap:8px; margin-bottom:18px}
+    .stat{padding:8px 10px; min-width:calc(50% - 8px); border-radius:8px}
+    .stat b{font-size:16px} .stat span{font-size:9px}
+    thead th, tbody td{padding:8px 6px}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="header-bar">
+    <h1 class="title">Мои игры</h1>
+    
+    <div class="header-actions">
+      <button class="btn-top delete-selected" id="btnDeleteSelected" onclick="deleteSelected()" title="Удалить выбранные">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+        </svg>
+        <span id="selectedCount">0</span>
+      </button>
+
+      <button class="btn-top add" onclick="addMainRow()" title="Добавить игру">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+      </button>
+      
+      <button class="btn-top clear" onclick="clearAll()" title="Очистить всё">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="statTotal">0</b><span>Всего</span></div>
+    <div class="stat"><b id="statDone">0</b><span>Пройдено</span></div>
+    <div class="stat"><b id="statAvg">—</b><span>Ср. балл</span></div>
+  </div>
+
+  <div class="table-box">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-check">
+            <input type="checkbox" id="selectAll" title="Выбрать все">
+          </th>
+          <th class="col-idx">#</th>
+          <th class="col-name">Название</th>
+          <th class="col-score">Оценка</th>
+          <th class="col-status">Статус</th>
+          <th class="col-notes">Заметки</th>
+          <th class="col-customer">Заказчик</th>
+          <th class="col-act"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const KEY = 'my_games_table_multiselect_v2';
+const OLD_KEY = 'my_games_table_multiselect_v1';
+const tbody = document.getElementById('tbody');
+const selectAllCheckbox = document.getElementById('selectAll');
+const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+
+let idCounter = 1;
+function genId() { return 'g_' + (idCounter++) + '_' + Date.now().toString(36); }
+
+function makeCell(text, cls) {
+  const td = document.createElement('td');
+  if (cls) td.className = cls;
+  const div = document.createElement('div');
+  div.setAttribute('contenteditable', 'true');
+  div.textContent = text;
+  td.appendChild(div);
+  return td;
+}
+
+function addRow(data) {
+  const tr = document.createElement('tr');
+  tr.dataset.id = data?.id || genId();
+  tr.dataset.parent = data?.parentId || '';
+  const isSubgroup = !!data?.parentId;
+
+  if (isSubgroup) {
+    tr.classList.add('subgroup-row');
+    tr.draggable = false;
+  } else {
+    tr.draggable = true;
+    tr.addEventListener('focusin', (e) => {
+      if (e.target.closest('[contenteditable]')) tr.draggable = false;
+    });
+    tr.addEventListener('focusout', (e) => {
+      if (e.target.closest('[contenteditable]')) tr.draggable = true;
+    });
+  }
+
+  const tdCheck = document.createElement('td');
+  tdCheck.className = 'col-check';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'row-checkbox';
+  cb.addEventListener('change', () => {
+    tr.classList.toggle('selected-row', cb.checked);
+    if (isSubgroup) {
+      const parentCb = tbody.querySelector(`tr[data-id="${data.parentId}"] .row-checkbox`);
+      if (parentCb && !parentCb.checked) {
+        parentCb.checked = true;
+        parentCb.closest('tr').classList.add('selected-row');
+      }
+    }
+    updateSelectionUI();
+  });
+  tdCheck.appendChild(cb);
+  tr.appendChild(tdCheck);
+
+  const idx = document.createElement('td');
+  idx.className = 'col-idx';
+  idx.textContent = isSubgroup ? '↳' : '';
+  tr.appendChild(idx);
+
+  tr.appendChild(makeCell(data?.name || '', 'col-name'));
+  tr.appendChild(makeCell(data?.score || '', 'col-score'));
+
+  const tdStatus = document.createElement('td');
+  tdStatus.className = 'col-status';
+  const sel = document.createElement('select');
+  sel.className = 'status';
+  ['Пройдена', 'Брошена', 'В процессе'].forEach(s => {
+    const o = document.createElement('option');
+    o.value = o.textContent = s;
+    sel.appendChild(o);
+  });
+  sel.value = data?.status || 'Пройдена';
+  sel.className = 'status ' + sel.value;
+  sel.addEventListener('change', () => {
+    sel.className = 'status ' + sel.value;
+    tr.classList.toggle('row-progress', sel.value === 'В процессе');
+    save(); updateStats(); sortRows();
+  });
+  tdStatus.appendChild(sel);
+  tr.appendChild(tdStatus);
+
+  tr.appendChild(makeCell(data?.notes || '', 'col-notes'));
+  tr.appendChild(makeCell(data?.customer || '', 'col-customer'));
+
+  const tdAct = document.createElement('td');
+  tdAct.className = 'col-act';
+
+  if (!isSubgroup) {
+    const addSubBtn = document.createElement('button');
+    addSubBtn.className = 'row-act add-sub';
+    addSubBtn.textContent = '+';
+    addSubBtn.title = 'Добавить DLC / обновление';
+    addSubBtn.onclick = (e) => { e.stopPropagation(); addSubgroup(tr.dataset.id); };
+    tdAct.appendChild(addSubBtn);
+  }
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'row-act del';
+  delBtn.textContent = '×';
+  delBtn.title = 'Удалить';
+  delBtn.onclick = () => deleteRow(tr);
+  tdAct.appendChild(delBtn);
+  tr.appendChild(tdAct);
+
+  if (sel.value === 'В процессе') tr.classList.add('row-progress');
+
+  tbody.appendChild(tr);
+  return tr;
+}
+
+function addMainRow() {
+  const tr = addRow({});
+  save(); updateStats(); sortRows();
+  const nameDiv = tr.querySelector('.col-name [contenteditable]');
+  if (nameDiv) nameDiv.focus();
+}
+
+function addSubgroup(parentId) {
+  const parentTr = tbody.querySelector(`tr[data-id="${parentId}"]`);
+  if (!parentTr) return;
+
+  const tr = addRow({
+    parentId: parentId,
+    name: '',
+    score: '',
+    status: parentTr.querySelector('.status').value,
+    notes: '',
+    customer: ''
+  });
+
+  const subs = [...tbody.querySelectorAll(`tr[data-parent="${parentId}"]`)].filter(s => s !== tr);
+  const lastChild = subs.length ? subs[subs.length - 1] : parentTr;
+  lastChild.insertAdjacentElement('afterend', tr);
+
+  renumber();
+  save(); updateStats();
+
+  const nameDiv = tr.querySelector('.col-name [contenteditable]');
+  if (nameDiv) nameDiv.focus();
+}
+
+function deleteRow(tr) {
+  if (!tr.dataset.parent) {
+    const id = tr.dataset.id;
+    tbody.querySelectorAll(`tr[data-parent="${id}"]`).forEach(s => s.remove());
+  }
+  tr.remove();
+  renumber(); save(); updateStats(); updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  const checkedBoxes = [...tbody.querySelectorAll('.row-checkbox:checked')];
+  const totalBoxes = [...tbody.querySelectorAll('.row-checkbox')];
+  
+  document.getElementById('selectedCount').textContent = checkedBoxes.length;
+  
+  if (checkedBoxes.length > 0) {
+    btnDeleteSelected.classList.add('visible');
+  } else {
+    btnDeleteSelected.classList.remove('visible');
+  }
+
+  if (totalBoxes.length > 0) {
+    selectAllCheckbox.checked = checkedBoxes.length === totalBoxes.length;
+    selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < totalBoxes.length;
+  } else {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
+}
+
+selectAllCheckbox.addEventListener('change', () => {
+  const isChecked = selectAllCheckbox.checked;
+  tbody.querySelectorAll('.row-checkbox').forEach(cb => {
+    cb.checked = isChecked;
+    cb.closest('tr').classList.toggle('selected-row', isChecked);
+  });
+  updateSelectionUI();
+});
+
+function deleteSelected() {
+  const checkedBoxes = [...tbody.querySelectorAll('.row-checkbox:checked')];
+  if (checkedBoxes.length === 0) return;
+  
+  if (!confirm(`Удалить выбранные записи (${checkedBoxes.length} шт.)? Удаленные DLC также будут стерты.`)) return;
+
+  const idsToDelete = new Set();
+  checkedBoxes.forEach(cb => {
+    const tr = cb.closest('tr');
+    idsToDelete.add(tr.dataset.id);
+  });
+
+  tbody.querySelectorAll('tr[data-id]').forEach(tr => {
+    if (idsToDelete.has(tr.dataset.id) || idsToDelete.has(tr.dataset.parent)) {
+      tr.remove();
+    }
+  });
+
+  renumber(); save(); updateStats(); updateSelectionUI();
+}
+
+function renumber() {
+  let num = 1;
+  [...tbody.querySelectorAll('tr[data-id]')].forEach(tr => {
+    if (!tr.dataset.parent) {
+      const idxCell = tr.querySelector('.col-idx');
+      if (idxCell) idxCell.textContent = num++;
+    }
+  });
+}
+
+function sortRows() {
+  const allRows = [...tbody.querySelectorAll('tr[data-id]')];
+  const mainRows = allRows.filter(tr => !tr.dataset.parent);
+  const subRows = allRows.filter(tr => tr.dataset.parent);
+
+  mainRows.sort((a, b) => {
+    const statusA = a.querySelector('.status').value;
+    const statusB = b.querySelector('.status').value;
+    const scoreA = parseFloat(a.querySelector('.col-score [contenteditable]').textContent) || 0;
+    const scoreB = parseFloat(b.querySelector('.col-score [contenteditable]').textContent) || 0;
+    if (statusA === 'В процессе' && statusB !== 'В процессе') return -1;
+    if (statusA !== 'В процессе' && statusB === 'В процессе') return 1;
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    return 0;
+  });
+
+  tbody.innerHTML = '';
+  let num = 1, stripeIdx = 0;
+  
+  mainRows.forEach(main => {
+    main.querySelector('.col-idx').textContent = num++;
+    main.classList.toggle('stripe', stripeIdx % 2 === 1);
+    stripeIdx++;
+    tbody.appendChild(main);
+
+    const children = subRows.filter(s => s.dataset.parent === main.dataset.id);
+    children.sort((a, b) => {
+      const scoreA = parseFloat(a.querySelector('.col-score [contenteditable]').textContent) || 0;
+      const scoreB = parseFloat(b.querySelector('.col-score [contenteditable]').textContent) || 0;
+      return scoreB - scoreA;
+    });
+    children.forEach(c => tbody.appendChild(c));
+  });
+  
+  updateSelectionUI();
+}
+
+let draggedRow = null;
+
+tbody.addEventListener('dragstart', (e) => {
+  const tr = e.target.closest('tr[data-id]:not(.subgroup-row)');
+  if (!tr) return;
+  draggedRow = tr;
+  tr.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+});
+
+tbody.addEventListener('dragover', (e) => {
+  if (!draggedRow) return;
+  e.preventDefault();
+  const tr = e.target.closest('tr[data-id]:not(.subgroup-row)');
+  if (!tr || tr === draggedRow) return;
+  const rect = tr.getBoundingClientRect();
+  const midpoint = rect.top + rect.height / 2;
+  if (e.clientY < midpoint) tbody.insertBefore(draggedRow, tr);
+  else tbody.insertBefore(draggedRow, tr.nextSibling);
+});
+
+tbody.addEventListener('dragend', () => {
+  if (!draggedRow) return;
+  draggedRow.classList.remove('dragging');
+  const mainRows = [...tbody.querySelectorAll('tr[data-id]:not(.subgroup-row)')];
+  mainRows.forEach(main => {
+    const subs = [...tbody.querySelectorAll(`tr[data-parent="${main.dataset.id}"]`)];
+    let anchor = main;
+    subs.forEach(sub => { anchor.insertAdjacentElement('afterend', sub); anchor = sub; });
+  });
+  draggedRow = null;
+  renumber(); save();
+});
+
+function save() {
+  const rows = [...tbody.querySelectorAll('tr[data-id]')].map(tr => ({
+    id: tr.dataset.id,
+    parentId: tr.dataset.parent || null,
+    name: tr.querySelector('.col-name [contenteditable]').textContent.trim(),
+    score: tr.querySelector('.col-score [contenteditable]').textContent.trim(),
+    status: tr.querySelector('.status').value,
+    notes: tr.querySelector('.col-notes [contenteditable]').textContent.trim(),
+    customer: tr.querySelector('.col-customer [contenteditable]').textContent.trim()
+  }));
+  localStorage.setItem(KEY, JSON.stringify(rows));
+}
+
+function load() {
+  let raw = localStorage.getItem(KEY);
+  if (!raw) {
+    const oldRaw = localStorage.getItem(OLD_KEY);
+    if (oldRaw) {
+      try {
+        const oldData = JSON.parse(oldRaw);
+        oldData.forEach(d => { d.id = genId(); d.parentId = null; });
+        localStorage.setItem(KEY, JSON.stringify(oldData));
+        raw = localStorage.getItem(KEY);
+      } catch (e) {}
+    }
+  }
+
+  if (raw) {
+    try { JSON.parse(raw).forEach(d => addRow(d)); } catch (e) {}
+  }
+
+  if (tbody.children.length === 0) {
+    const g1 = genId();
+    addRow({ id: g1, parentId: null, name: 'The Witcher 3', score: '10', status: 'Пройдена', notes: 'Геральт навсегда', customer: 'CD Projekt' });
+    addRow({ id: genId(), parentId: g1, name: 'Blood and Wine', score: '10', status: 'Пройдена', notes: 'Лучшее DLC', customer: 'CD Projekt' });
+    addRow({ id: genId(), parentId: g1, name: 'Hearts of Stone', score: '9', status: 'Пройдена', notes: 'Отличная история', customer: 'CD Projekt' });
+    addRow({ id: genId(), parentId: null, name: 'Hades', score: '9', status: 'Пройдена', notes: 'Рогалик-шедевр', customer: 'Supergiant' });
+    addRow({ id: genId(), parentId: null, name: 'Elden Ring', score: '', status: 'В процессе', notes: 'Только начал', customer: 'FromSoftware' });
+  }
+  sortRows(); updateStats(); updateSelectionUI();
+}
+
+function clearAll() {
+  if (confirm('Точно удалить ВСЕ записи?')) {
+    tbody.innerHTML = '';
+    save(); updateStats(); updateSelectionUI();
+  }
+}
+
+function updateStats() {
+  const mainRows = [...tbody.querySelectorAll('tr[data-id]:not(.subgroup-row)')];
+  const total = mainRows.length;
+  const done = mainRows.filter(tr => tr.querySelector('.status').value === 'Пройдена').length;
+  const scores = mainRows
+    .map(tr => parseFloat(tr.querySelector('.col-score [contenteditable]').textContent))
+    .filter(n => !isNaN(n));
+  const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '—';
+  
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statDone').textContent = done;
+  document.getElementById('statAvg').textContent = avg;
+}
+
+document.addEventListener('input', (e) => {
+  if (e.target.closest('[contenteditable]')) { save(); updateStats(); }
+});
+
+document.addEventListener('blur', (e) => {
+  if (!e.target.closest('[contenteditable]')) return;
+  const currentRow = e.target.closest('tr');
+  setTimeout(() => {
+    save(); updateStats();
+    const activeRow = document.activeElement?.closest?.('tr');
+    if (activeRow !== currentRow) sortRows();
+  }, 10);
+}, true);
+
+load();
+</script>
+
+</body>
+</html>
